@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Short Link Creator</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+
+<body>
+  <!-- ─── Login Screen ─────────────────────────────────────────── -->
+  <div id="login-screen" class="screen active">
+    <div class="login-card glass">
+      <h1>Short Link Creator</h1>
+      <p class="subtitle">Enter your password to continue</p>
+      <form id="login-form">
+        <div class="input-group">
+          <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary" id="login-btn">
+          <span>Log In</span>
+        </button>
+        <p id="login-error" class="error-text hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── Dashboard ────────────────────────────────────────────── -->
+  <div id="dashboard-screen" class="screen">
+    <header>
+      <div class="header-inner">
+        <h1 id="app-title"></h1>
+        <div class="header-right">
+          <button id="logout-btn" class="btn btn-ghost">Log Out</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Create Link Card -->
+      <section class="card glass" id="create-section">
+        <h2>Create New Short Link</h2>
+        <form id="create-form">
+          <div class="input-group">
+            <label for="original-url">Destination URL <span class="required">*</span></label>
+            <input type="url" id="original-url" placeholder="https://example.com/very/long/url" required />
+          </div>
+          <div class="row">
+            <div class="input-group flex-1">
+              <label for="custom-slug">Custom Slug <span class="optional">(optional)</span></label>
+              <input type="text" id="custom-slug" placeholder="my-link" />
+            </div>
+            <div class="input-group flex-1">
+              <label for="link-title">Title <span class="optional">(optional)</span></label>
+              <input type="text" id="link-title" placeholder="My Campaign Link" />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="create-btn">
+            <span>Create Short Link</span>
+          </button>
+        </form>
+
+        <!-- Result -->
+        <div id="result-area" class="result hidden">
+          <p class="result-label">Your short link:</p>
+          <div class="result-url-row">
+            <a id="result-url" href="#" target="_blank" class="result-link"></a>
+            <button id="copy-btn" class="btn btn-small" title="Copy to clipboard">📋 Copy</button>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div id="create-error" class="error-box hidden"></div>
+      </section>
+
+      <!-- Existing Links -->
+      <section class="card glass" id="links-section">
+        <div class="section-header">
+          <h2>Existing Links</h2>
+          <button id="refresh-btn" class="btn btn-ghost btn-small">↻ Refresh</button>
+        </div>
+        <div id="links-loader" class="loader hidden">Loading links…</div>
+        <div id="links-error" class="error-box hidden"></div>
+        <div id="links-list" class="links-table-wrap"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

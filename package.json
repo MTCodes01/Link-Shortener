@@ -1,0 +1,16 @@
+{
+  "name": "short-link-creator",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Custom short link creator using short.io API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@short.io/client-node": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
