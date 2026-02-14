@@ -252,4 +252,22 @@
 
   // ── Refresh ──────────────────────────────────────────────────
   refreshBtn.addEventListener("click", loadLinks);
+
+  // ── Footer Toggle ────────────────────────────────────────────
+  const footerToggle = document.getElementById("footer-toggle");
+  const appFooter = document.getElementById("app-footer");
+
+  if (footerToggle && appFooter) {
+    footerToggle.addEventListener("click", () => {
+      appFooter.classList.toggle("active");
+      
+      // Update icon (optional)
+      const icon = footerToggle.querySelector(".icon");
+      if (appFooter.classList.contains("active")) {
+        icon.textContent = "x"; // Close icon
+      } else {
+        icon.textContent = "?"; // Info icon
+      }
+    });
+  }
 })();

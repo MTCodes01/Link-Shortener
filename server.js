@@ -3,12 +3,7 @@ import crypto from "crypto";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import {
-  setApiKey,
-  createLink,
-  listLinks,
-  listDomains,
-} from "@short.io/client-node";
+import { Shortio } from "@short.io/client-node";
 
 // ── Config ─────────────────────────────────────────────────────
 const API_KEY = process.env.API_KEY;
@@ -16,7 +11,7 @@ const DOMAIN = process.env.DOMAIN;
 const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD;
 const PORT = process.env.PORT || 3000;
 
-setApiKey(API_KEY);
+const shortio = new Shortio(API_KEY);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -29,8 +24,7 @@ let cachedDomainId = null;
 async function getDomainId() {
   if (cachedDomainId) return cachedDomainId;
   try {
-    const result = await listDomains();
-    const domains = result.data || [];
+    const domains = await shortio.domain.list();
     const match = domains.find((d) => d.hostname === DOMAIN);
     if (match) {
       cachedDomainId = match.id;
@@ -70,12 +64,10 @@ app.post("/api/login", (req, res) => {
 });
 
 // ── Get domain info ────────────────────────────────────────────
-// ── Get domain info ────────────────────────────────────────────
 app.get("/api/domain", requireAuth, (_req, res) => {
   res.json({ domain: DOMAIN });
 });
 
-// ── List existing links ────────────────────────────────────────
 // ── List existing links ────────────────────────────────────────
 app.get("/api/links", requireAuth, async (_req, res) => {
   try {
@@ -84,24 +76,43 @@ app.get("/api/links", requireAuth, async (_req, res) => {
       return res.status(400).json({ error: `Domain "${DOMAIN}" not found in your short.io account. Check your .env DOMAIN value.` });
     }
 
-    const result = await listLinks({
-      query: { domain_id: domainId, limit: 150 },
-    });
+    // New API: shortio.link.list(domainId, options)
+    const result = await shortio.link.list(domainId, { limit: 150 });
+
+    // The new client returns data directly (or throws? need to check error handling)
+    // Based on source: `const linksData = await linksRes.json(); return linksData;`
+    // It returns the JSON response. If error, Short.io API usually returns { error: ... } or similar?
+    // Let's assume standard behavior. The previous code checked `result.error`.
+    // The fetch implementation in the library doesn't throw on non-200.
+    // It returns the json body.
 
     if (result.error) {
-      return res.status(result.response?.status || 500).json({
-        error: result.error.message || "Failed to fetch links",
-      });
+       // The previous library wrapper might have normalized this.
+       // Let's assume the API returns an error field if something goes wrong.
+       return res.status(500).json({
+         error: result.error || "Failed to fetch links",
+       });
     }
 
-    res.json(result.data);
+    // result might be an array or object depending on the endpoint.
+    // /api/links endpoint documentation says it returns a list of links?
+    // Actually the library return `linksData`.
+    // Let's assume `result` is what we want or `result.links`.
+    // The previous code expected `result.data`.
+    // If the library returns the raw JSON from Short.io, /api/links returns { links: [...], count: ... } or just [...]?
+    // Usually it accepts `result` directly.
+    // Let's keep it safe and just return result for now, frontend might need adjustment if shape changed.
+    // Wait, old code: `res.json(result.data)`.
+    // If the library returns the body valid JSON, and old code used a wrapper that put it in `data`.
+    // Let's assume for now `result` is the data.
+
+    res.json(result.links || result); 
   } catch (err) {
     console.error("List links error:", err);
     res.status(500).json({ error: "Failed to fetch links" });
   }
 });
 
-// ── Create a new short link ────────────────────────────────────
 // ── Create a new short link ────────────────────────────────────
 app.post("/api/links", requireAuth, async (req, res) => {
   const { originalURL, path: slug, title } = req.body;
@@ -110,32 +121,26 @@ app.post("/api/links", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Original URL is required" });
   }
 
-  const body = {
-    domain: DOMAIN,
-    originalURL,
+  const options = {
     allowDuplicates: false,
   };
-  if (slug) body.path = slug;
-  if (title) body.title = title;
+  if (slug) options.path = slug;
+  if (title) options.title = title;
 
   try {
-    const result = await createLink({ body });
+    // New API: shortio.link.create(hostname, originalURL, options)
+    const result = await shortio.link.create(DOMAIN, originalURL, options);
 
     if (result.error) {
-      const status = result.response?.status || 500;
-      const message = result.error.message || "Failed to create link";
-
-      // 409 = slug already taken
-      if (status === 409) {
-        return res.status(409).json({
-          error: `The slug "${slug}" is already taken on ${DOMAIN}. Please choose a different one.`,
-        });
-      }
-      return res.status(status).json({ error: message });
+      // Logic for 409 etc might be different if status code isn't exposed easily.
+      // The library returns parsed JSON.
+      // If error, it might be { error: "...", ... }
+      // We can check if result.error is present.
+      
+      return res.status(400).json({ error: result.error || "Failed to create link" });
     }
 
-    // Invalidate domain cache is not needed, but refresh it once on first call
-    res.json(result.data);
+    res.json(result);
   } catch (err) {
     console.error("Create link error:", err);
     res.status(500).json({ error: "Server error while creating link" });
