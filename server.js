@@ -113,8 +113,14 @@ app.post("/api/links", requireAuth, async (req, res) => {
     // New API: shortio.link.create(hostname, originalURL, options)
     const result = await shortio.link.create(DOMAIN, originalURL, options);
 
-    if (result.error) {
-      return res.status(400).json({ error: result.error || "Failed to create link" });
+    // If the API returns a 409 or success:false with a 409 code, forward that status
+    if (result.error || result.success === false) {
+      const status = result.statusCode || 400;
+      return res.status(status).json({ 
+        error: result.message || result.error || "Failed to create link",
+        statusCode: status,
+        success: false
+      });
     }
 
     res.json(result);
