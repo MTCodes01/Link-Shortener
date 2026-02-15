@@ -81,13 +81,39 @@ app.get("/api/debug", async (_req, res) => {
     // Handle different response formats
     const domains = Array.isArray(response) ? response : (response.domains || []);
 
+    // Inspect API Key for hidden characters
+    const apiKeyCodes = API_KEY ? [...API_KEY].map(c => c.charCodeAt(0)) : [];
+    
+    // Try a raw fetch to see if we get a specific error message
+    // Using a public endpoint or just a raw call to see headers
+    let rawResponse = null;
+    try {
+        const fetchRes = await fetch("https://api.short.io/api/v2/domains", {
+            headers: { 
+                "Authorization": API_KEY,
+                "Content-Type": "application/json"
+            }
+        });
+        rawResponse = {
+            status: fetchRes.status,
+            statusText: fetchRes.statusText,
+            headers: Object.fromEntries(fetchRes.headers.entries()),
+            data: await fetchRes.json()
+        };
+    } catch(e) {
+        rawResponse = { error: e.message };
+    }
+
     res.json({
       configuredDomain: DOMAIN,
       apiKeyPresent: !!API_KEY,
       apiKeyPrefix: API_KEY ? API_KEY.substring(0, 4) : 'none',
       apiKeyLength: API_KEY?.length || 0,
+      apiKeyLastChar: API_KEY ? API_KEY.slice(-1) : 'none',
+      apiKeyCharCodes: apiKeyCodes,
       availableDomains: domains.map(d => d.hostname),
-      domainFound: domains.some(d => d.hostname === DOMAIN)
+      domainFound: domains.some(d => d.hostname === DOMAIN),
+      rawApiResponse: rawResponse
     });
   } catch (err) {
     res.status(500).json({ 
