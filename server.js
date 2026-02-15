@@ -24,10 +24,25 @@ let cachedDomainId = null;
 async function getDomainId() {
   if (cachedDomainId) return cachedDomainId;
   try {
-    const response = await shortio.domain.list();
-    
-    // Handle different response formats - sometimes it's an array, sometimes an object with domains property
-    const domains = Array.isArray(response) ? response : (response.domains || []);
+    // URL for Short.io API to list domains
+    const response = await fetch("https://api.short.io/api/v2/domains", {
+      method: 'GET',
+      headers: {
+        'Authorization': API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`❌ API Error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`   Body: ${errorText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    // Handle different response formats (array vs object)
+    const domains = Array.isArray(data) ? data : (data.domains || []);
     
     // Enhanced logging for debugging
     console.log(`🔍 Looking for domain: "${DOMAIN}"`);
