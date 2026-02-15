@@ -25,7 +25,7 @@ async function getDomainId() {
   if (cachedDomainId) return cachedDomainId;
   try {
     // URL for Short.io API to list domains
-    const response = await fetch("https://api.short.io/api/v2/domains", {
+    const response = await fetch("https://api.short.io/api/domains", {
       method: 'GET',
       headers: {
         'Authorization': API_KEY,
@@ -92,31 +92,38 @@ app.post("/api/login", (req, res) => {
 // ── Debug endpoint ─────────────────────────────────────────────
 app.get("/api/debug", async (_req, res) => {
   try {
-    const response = await shortio.domain.list();
-    // Handle different response formats
-    const domains = Array.isArray(response) ? response : (response.domains || []);
-
+    // URL for Short.io API to list domains
+    // Using correct endpoint verified from docs
+    const response = await fetch("https://api.short.io/api/domains", {
+      method: 'GET',
+      headers: {
+        'Authorization': API_KEY,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    
     // Inspect API Key for hidden characters
     const apiKeyCodes = API_KEY ? [...API_KEY].map(c => c.charCodeAt(0)) : [];
     
-    // Try a raw fetch to see if we get a specific error message
-    // Using a public endpoint or just a raw call to see headers
-    let rawResponse = null;
+    // Capture raw response for debugging
+    let rawResponse = {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+    };
+
+    let domains = [];
     try {
-        const fetchRes = await fetch("https://api.short.io/api/v2/domains", {
-            headers: { 
-                "Authorization": API_KEY,
-                "Content-Type": "application/json"
-            }
-        });
-        rawResponse = {
-            status: fetchRes.status,
-            statusText: fetchRes.statusText,
-            headers: Object.fromEntries(fetchRes.headers.entries()),
-            data: await fetchRes.json()
-        };
-    } catch(e) {
-        rawResponse = { error: e.message };
+        const textData = await response.text();
+        rawResponse.bodyPreview = textData.substring(0, 500); // First 500 chars
+        
+        if (response.ok) {
+            const data = JSON.parse(textData);
+            domains = Array.isArray(data) ? data : (data.domains || []);
+        }
+    } catch (e) {
+        rawResponse.parseError = e.message;
     }
 
     res.json({
@@ -132,12 +139,8 @@ app.get("/api/debug", async (_req, res) => {
     });
   } catch (err) {
     res.status(500).json({ 
-      error: "Failed to fetch debug info",
-      configuredDomain: DOMAIN,
-      apiKeyPresent: !!API_KEY,
-      apiKeyPrefix: API_KEY ? API_KEY.substring(0, 4) : 'none',
-      apiKeyLength: API_KEY?.length || 0,
-      errorMessage: err.message
+        error: "Failed to fetch debug info",
+        errorMessage: err.message 
     });
   }
 });
