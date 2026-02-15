@@ -24,13 +24,24 @@ let cachedDomainId = null;
 async function getDomainId() {
   if (cachedDomainId) return cachedDomainId;
   try {
-    const domains = await shortio.domain.list();
+    const response = await shortio.domain.list();
+    
+    // Handle different response formats - sometimes it's an array, sometimes an object with domains property
+    const domains = Array.isArray(response) ? response : (response.domains || []);
+    
+    // Enhanced logging for debugging
+    console.log(`🔍 Looking for domain: "${DOMAIN}"`);
+    console.log(`📋 Available domains in Short.io account:`, domains.map(d => d.hostname));
+    
     const match = domains.find((d) => d.hostname === DOMAIN);
     if (match) {
       cachedDomainId = match.id;
+      console.log(`✅ Domain found! ID: ${cachedDomainId}`);
       return cachedDomainId;
     }
-    console.warn(`Domain "${DOMAIN}" not found in your short.io account.`);
+    
+    console.error(`❌ Domain "${DOMAIN}" not found in your short.io account.`);
+    console.error(`Available domains:`, domains.map(d => `"${d.hostname}"`).join(', '));
     return null;
   } catch (err) {
     console.error("Failed to list domains:", err);
@@ -61,6 +72,27 @@ app.post("/api/login", (req, res) => {
     return res.json({ success: true, token: generateToken() });
   }
   return res.status(401).json({ success: false, error: "Invalid password" });
+});
+
+// ── Debug endpoint ─────────────────────────────────────────────
+app.get("/api/debug", requireAuth, async (_req, res) => {
+  try {
+    const domains = await shortio.domain.list();
+    res.json({
+      configuredDomain: DOMAIN,
+      apiKeyPresent: !!API_KEY,
+      apiKeyLength: API_KEY?.length || 0,
+      availableDomains: domains.map(d => d.hostname),
+      domainFound: domains.some(d => d.hostname === DOMAIN)
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      error: "Failed to fetch debug info",
+      configuredDomain: DOMAIN,
+      apiKeyPresent: !!API_KEY,
+      errorMessage: err.message
+    });
+  }
 });
 
 // ── Get domain info ────────────────────────────────────────────
@@ -152,6 +184,18 @@ app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`✓  Short Link Creator running → http://localhost:${PORT}`);
+  
+  // Verify domain on startup
+  console.log(`\n🔧 Verifying Short.io configuration...`);
+  console.log(`   API Key: ${API_KEY ? '✅ Present' : '❌ Missing'}`);
+  console.log(`   Domain: ${DOMAIN}`);
+  
+  const domainId = await getDomainId();
+  if (domainId) {
+    console.log(`✅ Short.io domain verified successfully!\n`);
+  } else {
+    console.error(`⚠️  WARNING: Domain verification failed. Check logs above.\n`);
+  }
 });
