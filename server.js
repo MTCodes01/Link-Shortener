@@ -84,6 +84,7 @@ app.get("/api/debug", async (_req, res) => {
     res.json({
       configuredDomain: DOMAIN,
       apiKeyPresent: !!API_KEY,
+      apiKeyPrefix: API_KEY ? API_KEY.substring(0, 4) : 'none',
       apiKeyLength: API_KEY?.length || 0,
       availableDomains: domains.map(d => d.hostname),
       domainFound: domains.some(d => d.hostname === DOMAIN)
@@ -93,6 +94,8 @@ app.get("/api/debug", async (_req, res) => {
       error: "Failed to fetch debug info",
       configuredDomain: DOMAIN,
       apiKeyPresent: !!API_KEY,
+      apiKeyPrefix: API_KEY ? API_KEY.substring(0, 4) : 'none',
+      apiKeyLength: API_KEY?.length || 0,
       errorMessage: err.message
     });
   }
@@ -193,6 +196,7 @@ app.listen(PORT, async () => {
   // Verify domain on startup
   console.log(`\n🔧 Verifying Short.io configuration...`);
   console.log(`   API Key: ${API_KEY ? '✅ Present' : '❌ Missing'}`);
+  console.log(`   Key Type: ${API_KEY ? API_KEY.substring(0, 4) + '...' : 'N/A'} (Length: ${API_KEY?.length})`);
   console.log(`   Domain: ${DOMAIN}`);
   
   const domainId = await getDomainId();
