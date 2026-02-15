@@ -3,6 +3,7 @@ import crypto from "crypto";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import https from "https";
 import { Shortio } from "@short.io/client-node";
 
 // ── Config ─────────────────────────────────────────────────────
@@ -23,48 +24,65 @@ let cachedDomainId = null;
 
 async function getDomainId() {
   if (cachedDomainId) return cachedDomainId;
-  try {
-    // URL for Short.io API to list domains
-    const response = await fetch("https://api.short.io/api/domains?limit=50", {
+  
+  return new Promise((resolve) => {
+    console.log(`🔍 Looking for domain: "${DOMAIN}" via native HTTPS`);
+    
+    const options = {
+      hostname: 'api.short.io',
+      path: '/api/domains?limit=50',
       method: 'GET',
       headers: {
         'Authorization': API_KEY,
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
         'Cache-Control': 'no-cache'
-      },
-      cache: 'no-store'
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          if (res.statusCode !== 200) {
+            console.error(`❌ API Error: ${res.statusCode} ${res.statusMessage}`);
+            console.error(`   Body: ${data}`);
+            resolve(null);
+            return;
+          }
+
+          const parsed = JSON.parse(data);
+          const domains = Array.isArray(parsed) ? parsed : (parsed.domains || []);
+          
+          console.log(`📋 Available domains:`, domains.map(d => d.hostname));
+          
+          const match = domains.find((d) => d.hostname === DOMAIN);
+          if (match) {
+            cachedDomainId = match.id;
+            console.log(`✅ Domain found! ID: ${cachedDomainId}`);
+            resolve(cachedDomainId);
+          } else {
+            console.error(`❌ Domain "${DOMAIN}" not found in list.`);
+            resolve(null);
+          }
+        } catch (e) {
+          console.error("Failed to parse Short.io response:", e);
+          resolve(null);
+        }
+      });
     });
 
-    if (!response.ok) {
-      console.error(`❌ API Error: ${response.status} ${response.statusText}`);
-      const errorText = await response.text();
-      console.error(`   Body: ${errorText}`);
-      return null;
-    }
+    req.on('error', (e) => {
+      console.error("Request error:", e);
+      resolve(null);
+    });
 
-    const data = await response.json();
-    // Handle different response formats (array vs object)
-    const domains = Array.isArray(data) ? data : (data.domains || []);
-    
-    // Enhanced logging for debugging
-    console.log(`🔍 Looking for domain: "${DOMAIN}"`);
-    console.log(`📋 Available domains in Short.io account:`, domains.map(d => d.hostname));
-    
-    const match = domains.find((d) => d.hostname === DOMAIN);
-    if (match) {
-      cachedDomainId = match.id;
-      console.log(`✅ Domain found! ID: ${cachedDomainId}`);
-      return cachedDomainId;
-    }
-    
-    console.error(`❌ Domain "${DOMAIN}" not found in your short.io account.`);
-    console.error(`Available domains:`, domains.map(d => `"${d.hostname}"`).join(', '));
-    return null;
-  } catch (err) {
-    console.error("Failed to list domains:", err);
-    return null;
-  }
+    req.end();
+  });
 }
 
 // ── Auth Helper ────────────────────────────────────────────────
