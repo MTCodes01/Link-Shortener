@@ -25,12 +25,15 @@ async function getDomainId() {
   if (cachedDomainId) return cachedDomainId;
   try {
     // URL for Short.io API to list domains
-    const response = await fetch("https://api.short.io/api/domains", {
+    const response = await fetch("https://api.short.io/api/domains?limit=50", {
       method: 'GET',
       headers: {
         'Authorization': API_KEY,
-        'Content-Type': 'application/json'
-      }
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      cache: 'no-store'
     });
 
     if (!response.ok) {
@@ -93,14 +96,15 @@ app.post("/api/login", (req, res) => {
 app.get("/api/debug", async (_req, res) => {
   try {
     // URL for Short.io API to list domains
-    // Using correct endpoint verified from docs
-    const response = await fetch("https://api.short.io/api/domains", {
+    const response = await fetch("https://api.short.io/api/domains?limit=50", {
       method: 'GET',
       headers: {
         'Authorization': API_KEY,
         'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      cache: 'no-store'
     });
     
     // Inspect API Key for hidden characters
