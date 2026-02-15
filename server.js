@@ -75,9 +75,12 @@ app.post("/api/login", (req, res) => {
 });
 
 // ── Debug endpoint ─────────────────────────────────────────────
-app.get("/api/debug", requireAuth, async (_req, res) => {
+app.get("/api/debug", async (_req, res) => {
   try {
-    const domains = await shortio.domain.list();
+    const response = await shortio.domain.list();
+    // Handle different response formats
+    const domains = Array.isArray(response) ? response : (response.domains || []);
+
     res.json({
       configuredDomain: DOMAIN,
       apiKeyPresent: !!API_KEY,
